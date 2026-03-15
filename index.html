@@ -496,7 +496,17 @@ function renderCodeInto(code, type, container, small) {
   if (type === 'qr') {
     const canvas = document.createElement('canvas');
     container.appendChild(canvas);
-    try { QRCode.toCanvas(canvas, code, { width: small ? 80 : 200, margin: 1, color: { dark: '#000', light: '#fff' } }); } catch(e) {}
+    try {
+      QRCode.toCanvas(canvas, code, { width: small ? 80 : 200, margin: 1, color: { dark: '#000000', light: '#ffffff' } }, function(err) {
+        if (err) {
+          canvas.remove();
+          container.innerHTML = '<p style="color:#999;font-size:12px">QR-code kon niet worden weergegeven</p>';
+        }
+      });
+    } catch(e) {
+      canvas.remove();
+      container.innerHTML = '<p style="color:#999;font-size:12px">QR-code kon niet worden weergegeven</p>';
+    }
   } else {
     const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
     container.appendChild(svg);
