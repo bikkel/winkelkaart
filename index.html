@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Winkelkaart">
+  <title>Winkelkaart</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface2: #22223a;
+      --card: #252540;
+      --accent: #7c6af7;
+      --accent2: #5eead4;
+      --text: #f0f0ff;
+      --text2: #9090b0;
+      --border: rgba(120,120,180,0.15);
+      --danger: #f87171;
+      --radius: 16px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+    /* NAV */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+    .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px 8px; background: none; border: none; color: var(--text2); font-size: 10px; cursor: pointer; transition: color .2s; }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn svg { width: 22px; height: 22px; }
+
+    /* PAGES */
+    .page { display: none; padding: 0 0 80px 0; min-height: 100vh; }
+    .page.active { display: block; }
+
+    /* HEADER */
+    .page-header { background: var(--surface); padding: 52px 16px 16px; position: sticky; top: 0; z-index: 50; border-bottom: 1px solid var(--border); }
+    .page-header h1 { font-size: 22px; font-weight: 700; }
+    .page-header p { color: var(--text2); font-size: 13px; margin-top: 2px; }
+    .search-bar { margin-top: 12px; display: flex; gap: 8px; }
+    .search-bar input { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 15px; outline: none; }
+    .search-bar input::placeholder { color: var(--text2); }
+    .filter-row { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .filter-chip { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 5px 14px; font-size: 12px; color: var(--text2); cursor: pointer; white-space: nowrap; transition: all .2s; }
+    .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* CARD LIST */
+    .card-list { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .store-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: transform .15s; active: scale(0.98); }
+    .store-card:active { transform: scale(0.98); }
+    .store-card-inner { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+    .store-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    .store-info { flex: 1; min-width: 0; }
+    .store-name { font-size: 16px; font-weight: 600; }
+    .store-cat { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .store-code { font-size: 11px; color: var(--text2); margin-top: 4px; font-family: monospace; }
+    .fav-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--text2); }
+    .fav-btn.active { color: #fbbf24; }
+    .empty-state { text-align: center; padding: 60px 24px; color: var(--text2); }
+    .empty-state svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: .4; }
+    .empty-state p { font-size: 15px; }
+
+    /* FAB */
+    .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; border-radius: 28px; background: var(--accent); border: none; color: #fff; font-size: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(124,106,247,.4); z-index: 90; transition: transform .15s; }
+    .fab:active { transform: scale(0.93); }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; display: none; align-items: flex-end; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border-radius: 24px 24px 0 0; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); }
+    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+    .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 15px; outline: none; }
+    .form-group select option { background: var(--card); }
+    .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .type-btn { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; color: var(--text2); cursor: pointer; font-size: 14px; text-align: center; transition: all .2s; }
+    .type-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 8px; }
+    .emoji-opt { width: 100%; aspect-ratio: 1; background: var(--card); border: 1px solid var(--border); border-radius: 10px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .emoji-opt.selected { border-color: var(--accent); background: rgba(124,106,247,.2); }
+    .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+    .btn { flex: 1; padding: 14px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--card); color: var(--text); }
+    .btn-danger { background: rgba(248,113,113,.15); color: var(--danger); border: 1px solid rgba(248,113,113,.3); }
+    .scan-btn { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; color: var(--accent); font-size: 15px; cursor: pointer; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    /* DETAIL MODAL */
+    .detail-modal { background: var(--surface); border-radius: 24px 24px 0 0; width: 100%; max-width: 480px; padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); }
+    .barcode-display { background: #fff; border-radius: 14px; padding: 20px 16px; text-align: center; margin: 20px 0; }
+    .barcode-display canvas, .barcode-display svg { max-width: 100%; }
+    .code-text { color: #333; font-size: 13px; margin-top: 8px; font-family: monospace; letter-spacing: 2px; }
+    .detail-header { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+    .detail-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+    .detail-name { font-size: 22px; font-weight: 700; }
+    .detail-cat { font-size: 13px; color: var(--text2); }
+
+    /* CATEGORIES */
+    .cat-section { margin-bottom: 8px; }
+    .cat-title { font-size: 13px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; padding: 0 16px; margin: 20px 0 10px; }
+
+    /* SCANNER */
+    #scanner-video { width: 100%; border-radius: 14px; display: block; }
+    .scanner-overlay { position: relative; margin: 16px 0; background: #000; border-radius: 14px; overflow: hidden; }
+    .scanner-frame { position: absolute; inset: 0; border-radius: 14px; box-shadow: inset 0 0 0 3px var(--accent); pointer-events: none; z-index: 2; }
+    .scan-line { position: absolute; left: 10%; right: 10%; height: 2px; background: var(--accent); z-index: 3; pointer-events: none; animation: scanmove 2s linear infinite; box-shadow: 0 0 8px var(--accent); }
+    @keyframes scanmove { 0%{top:15%} 50%{top:80%} 100%{top:15%} }
+    .corner { position: absolute; width: 22px; height: 22px; z-index: 4; }
+    .corner-tl { top: 10px; left: 10px; border-top: 3px solid var(--accent); border-left: 3px solid var(--accent); border-radius: 4px 0 0 0; }
+    .corner-tr { top: 10px; right: 10px; border-top: 3px solid var(--accent); border-right: 3px solid var(--accent); border-radius: 0 4px 0 0; }
+    .corner-bl { bottom: 10px; left: 10px; border-bottom: 3px solid var(--accent); border-left: 3px solid var(--accent); border-radius: 0 0 0 4px; }
+    .corner-br { bottom: 10px; right: 10px; border-bottom: 3px solid var(--accent); border-right: 3px solid var(--accent); border-radius: 0 0 4px 0; }
+
+    /* COLOR DOTS for store icon bg */
+    .bg-purple { background: rgba(124,106,247,.25); }
+    .bg-teal   { background: rgba(94,234,212,.2); }
+    .bg-amber  { background: rgba(251,191,36,.2); }
+    .bg-coral  { background: rgba(251,113,133,.2); }
+    .bg-green  { background: rgba(74,222,128,.2); }
+    .bg-blue   { background: rgba(96,165,250,.2); }
+    .bg-pink   { background: rgba(232,121,249,.2); }
+
+    /* SETTINGS */
+    .settings-list { padding: 16px; }
+    .settings-item { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; cursor: pointer; }
+    .settings-item svg { width: 20px; height: 20px; color: var(--accent); }
+    .settings-item-text { flex: 1; }
+    .settings-item-text b { display: block; font-size: 15px; }
+    .settings-item-text span { font-size: 12px; color: var(--text2); }
+    .badge-count { background: var(--accent); color: #fff; border-radius: 10px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<!-- PAGE: HOME -->
+<div class="page active" id="page-home">
+  <div class="page-header">
+    <h1>🛍️ Winkelkaart</h1>
+    <p id="subtitle-count">0 kaarten opgeslagen</p>
+    <div class="search-bar">
+      <input type="search" id="search-input" placeholder="Zoek winkel..." oninput="filterCards()">
+    </div>
+    <div class="filter-row" id="filter-row">
+      <div class="filter-chip active" onclick="setFilter('all', this)">Alle</div>
+      <div class="filter-chip" onclick="setFilter('fav', this)">⭐ Favorieten</div>
+    </div>
+  </div>
+  <div class="card-list" id="card-list"></div>
+</div>
+
+<!-- PAGE: SCAN -->
+<div class="page" id="page-scan">
+  <div class="page-header">
+    <h1>📷 Scannen</h1>
+    <p>Scan een barcode of QR-code</p>
+  </div>
+  <div style="padding:16px">
+    <div class="scanner-overlay">
+      <video id="scanner-video" autoplay playsinline muted></video>
+      <div class="scanner-frame"></div>
+      <div class="scan-line" id="scan-line" style="display:none"></div>
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+    </div>
+    <p id="scan-status" style="color:var(--text2);font-size:14px;text-align:center;margin:12px 0">Camera starten...</p>
+    <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="stopScanner();showPage('home')">Annuleren</button>
+  </div>
+</div>
+
+<!-- PAGE: FAVORIETEN -->
+<div class="page" id="page-fav">
+  <div class="page-header">
+    <h1>⭐ Favorieten</h1>
+    <p>Jouw meest gebruikte kaarten</p>
+  </div>
+  <div class="card-list" id="fav-list"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-home" onclick="showPage('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Kaarten
+  </button>
+  <button class="nav-btn" id="nav-scan" onclick="startScanPage()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M17 20v1M20 14v3M20 20v1"/></svg>
+    Scannen
+  </button>
+  <button class="nav-btn" id="nav-fav" onclick="showPage('fav')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    Favorieten
+  </button>
+</nav>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()" title="Kaart toevoegen">+</button>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modal-title">Kaart toevoegen</h2>
+
+    <button class="scan-btn" onclick="openScanFromModal()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M17 20v1M20 14v3M20 20v1"/></svg>
+      Scan barcode / QR-code
+    </button>
+
+    <div class="form-group">
+      <label>Winkelnaam</label>
+      <input type="text" id="f-name" placeholder="bijv. Albert Heijn">
+    </div>
+    <div class="form-group">
+      <label>Code (nummer of tekst)</label>
+      <input type="text" id="f-code" placeholder="bijv. 1234567890" oninput="previewCode()">
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <div class="type-toggle">
+        <div class="type-btn active" id="type-barcode" onclick="setType('barcode')">📊 Barcode</div>
+        <div class="type-btn" id="type-qr" onclick="setType('qr')">🔲 QR-code</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Categorie</label>
+      <select id="f-cat">
+        <option value="Supermarkt">🛒 Supermarkt</option>
+        <option value="Mode">👗 Mode</option>
+        <option value="Drogist">💊 Drogist</option>
+        <option value="Sport">⚽ Sport</option>
+        <option value="Electronica">📱 Electronica</option>
+        <option value="Boeken">📚 Boeken</option>
+        <option value="Brandstof">⛽ Brandstof</option>
+        <option value="Overig">🏪 Overig</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Icoon</label>
+      <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+    <div id="code-preview" style="display:none">
+      <div class="barcode-display" id="preview-container"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeAddModal()">Annuleren</button>
+      <button class="btn btn-primary" onclick="saveCard()">Opslaan</button>
+    </div>
+    <div id="edit-extra" style="display:none;margin-top:10px">
+      <button class="btn btn-danger" style="width:100%" onclick="deleteCard()">🗑 Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="detail-modal">
+    <div class="modal-handle"></div>
+    <div class="detail-header">
+      <div class="detail-icon" id="d-icon"></div>
+      <div>
+        <div class="detail-name" id="d-name"></div>
+        <div class="detail-cat" id="d-cat"></div>
+      </div>
+      <button class="fav-btn" id="d-fav-btn" onclick="toggleFavDetail()" style="margin-left:auto;font-size:22px">☆</button>
+    </div>
+    <div class="barcode-display">
+      <div id="d-code-render"></div>
+      <div class="code-text" id="d-code-text"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeDetailModal()">Sluiten</button>
+      <button class="btn btn-primary" onclick="editCurrentCard()">✏️ Bewerken</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EMOJIS = ['🛒','🛍️','👗','👟','💊','📱','📚','⛽','🏪','🍕','☕','🎮','💄','🌿','🐾','🏋️','🔑','🎁'];
+const COLORS = ['bg-purple','bg-teal','bg-amber','bg-coral','bg-green','bg-blue','bg-pink'];
+const CATS = ['Supermarkt','Mode','Drogist','Sport','Electronica','Boeken','Brandstof','Overig'];
+
+let cards = JSON.parse(localStorage.getItem('winkelkaart-v2') || '[]');
+let currentFilter = 'all';
+let currentSearch = '';
+let editingId = null;
+let detailId = null;
+let selectedEmoji = '🛒';
+let selectedType = 'barcode';
+let scanFromModal = false;
+
+function save() { localStorage.setItem('winkelkaart-v2', JSON.stringify(cards)); }
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function getColor(name) {
+  let h = 0; for (let c of name) h = (h * 31 + c.charCodeAt(0)) % COLORS.length;
+  return COLORS[h];
+}
+
+// --- RENDER ---
+function renderCards() {
+  const list = document.getElementById('card-list');
+  const favList = document.getElementById('fav-list');
+  const q = currentSearch.toLowerCase();
+
+  let filtered = cards.filter(c => {
+    const matchSearch = c.name.toLowerCase().includes(q) || c.cat.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
+    const matchFilter = currentFilter === 'all' || (currentFilter === 'fav' && c.fav) || currentFilter === c.cat;
+    return matchSearch && matchFilter;
+  });
+
+  const favs = cards.filter(c => c.fav);
+
+  document.getElementById('subtitle-count').textContent = `${cards.length} kaart${cards.length !== 1 ? 'en' : ''} opgeslagen`;
+
+  list.innerHTML = filtered.length === 0 ? `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg><p>${currentSearch ? 'Geen resultaten gevonden' : 'Nog geen kaarten — druk op + om te beginnen'}</p></div>` : '';
+
+  // Group by category
+  if (!currentSearch && currentFilter === 'all') {
+    const grouped = {};
+    filtered.forEach(c => { (grouped[c.cat] = grouped[c.cat] || []).push(c); });
+    for (const cat of CATS) {
+      if (!grouped[cat]) continue;
+      const title = document.createElement('div');
+      title.className = 'cat-title';
+      title.textContent = ['🛒','👗','💊','⚽','📱','📚','⛽','🏪'][CATS.indexOf(cat)] + ' ' + cat;
+      list.appendChild(title);
+      grouped[cat].forEach(c => list.appendChild(makeCard(c)));
+    }
+  } else {
+    filtered.forEach(c => list.appendChild(makeCard(c)));
+  }
+
+  favList.innerHTML = favs.length === 0 ? `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><p>Markeer kaarten als favoriet voor snelle toegang</p></div>` : '';
+  favs.forEach(c => favList.appendChild(makeCard(c)));
+
+  updateFilters();
+}
+
+function makeCard(c) {
+  const div = document.createElement('div');
+  div.className = 'store-card';
+  div.innerHTML = `
+    <div class="store-card-inner">
+      <div class="store-icon ${getColor(c.name)}">${c.emoji}</div>
+      <div class="store-info">
+        <div class="store-name">${c.name}</div>
+        <div class="store-cat">${c.cat} · ${c.type === 'qr' ? 'QR' : 'Barcode'}</div>
+        <div class="store-code">${c.code}</div>
+      </div>
+      <button class="fav-btn ${c.fav ? 'active' : ''}" onclick="event.stopPropagation();toggleFav('${c.id}')">${c.fav ? '★' : '☆'}</button>
+    </div>`;
+  div.addEventListener('click', () => openDetail(c.id));
+  return div;
+}
+
+function updateFilters() {
+  const cats = [...new Set(cards.map(c => c.cat))];
+  const row = document.getElementById('filter-row');
+  const chips = row.querySelectorAll('.filter-chip');
+  // Remove category chips (keep All + Fav)
+  Array.from(chips).slice(2).forEach(c => c.remove());
+  cats.forEach(cat => {
+    const chip = document.createElement('div');
+    chip.className = 'filter-chip' + (currentFilter === cat ? ' active' : '');
+    chip.textContent = cat;
+    chip.onclick = function() { setFilter(cat, this); };
+    row.appendChild(chip);
+  });
+}
+
+// --- FILTER / SEARCH ---
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderCards();
+}
+function filterCards() {
+  currentSearch = document.getElementById('search-input').value;
+  renderCards();
+}
+
+// --- FAV ---
+function toggleFav(id) {
+  const c = cards.find(c => c.id === id);
+  if (c) { c.fav = !c.fav; save(); renderCards(); }
+}
+function toggleFavDetail() {
+  toggleFav(detailId);
+  const c = cards.find(c => c.id === detailId);
+  document.getElementById('d-fav-btn').textContent = c.fav ? '★' : '☆';
+  document.getElementById('d-fav-btn').style.color = c.fav ? '#fbbf24' : '';
+}
+
+// --- PAGES ---
+function showPage(name) {
+  if (name !== 'scan') stopScanner();
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'fav') renderCards();
+}
+
+// --- DETAIL ---
+function openDetail(id) {
+  detailId = id;
+  const c = cards.find(c => c.id === id);
+  document.getElementById('d-name').textContent = c.name;
+  document.getElementById('d-cat').textContent = c.cat + ' · ' + (c.type === 'qr' ? 'QR-code' : 'Barcode');
+  document.getElementById('d-icon').textContent = c.emoji;
+  document.getElementById('d-icon').className = 'detail-icon ' + getColor(c.name);
+  document.getElementById('d-code-text').textContent = c.code;
+  document.getElementById('d-fav-btn').textContent = c.fav ? '★' : '☆';
+  document.getElementById('d-fav-btn').style.color = c.fav ? '#fbbf24' : '';
+  const container = document.getElementById('d-code-render');
+  container.innerHTML = '';
+  renderCodeInto(c.code, c.type, container, false);
+  document.getElementById('modal-detail').classList.add('open');
+}
+function closeDetailModal() { document.getElementById('modal-detail').classList.remove('open'); }
+function editCurrentCard() { closeDetailModal(); openEditModal(detailId); }
+
+// --- BARCODE RENDER ---
+function renderCodeInto(code, type, container, small) {
+  if (!code) return;
+  if (type === 'qr') {
+    const canvas = document.createElement('canvas');
+    container.appendChild(canvas);
+    try { QRCode.toCanvas(canvas, code, { width: small ? 80 : 200, margin: 1, color: { dark: '#000', light: '#fff' } }); } catch(e) {}
+  } else {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    container.appendChild(svg);
+    try { JsBarcode(svg, code, { format: 'CODE128', width: small ? 1.5 : 2, height: small ? 50 : 80, displayValue: false, background: '#ffffff', lineColor: '#000000' }); } catch(e) { svg.remove(); container.innerHTML = '<p style="color:#999;font-size:12px">Ongeldige barcode</p>'; }
+  }
+}
+
+function previewCode() {
+  const code = document.getElementById('f-code').value.trim();
+  const preview = document.getElementById('code-preview');
+  const container = document.getElementById('preview-container');
+  container.innerHTML = '';
+  if (code.length > 2) {
+    preview.style.display = 'block';
+    renderCodeInto(code, selectedType, container, false);
+  } else { preview.style.display = 'none'; }
+}
+
+// --- ADD / EDIT MODAL ---
+function buildEmojiGrid(sel) {
+  const grid = document.getElementById('emoji-grid');
+  grid.innerHTML = '';
+  EMOJIS.forEach(e => {
+    const btn = document.createElement('div');
+    btn.className = 'emoji-opt' + (e === sel ? ' selected' : '');
+    btn.textContent = e;
+    btn.onclick = () => { selectedEmoji = e; buildEmojiGrid(e); };
+    grid.appendChild(btn);
+  });
+}
+
+function setType(t) {
+  selectedType = t;
+  document.getElementById('type-barcode').className = 'type-btn' + (t === 'barcode' ? ' active' : '');
+  document.getElementById('type-qr').className = 'type-btn' + (t === 'qr' ? ' active' : '');
+  previewCode();
+}
+
+function openAddModal() {
+  editingId = null;
+  selectedEmoji = '🛒';
+  selectedType = 'barcode';
+  document.getElementById('modal-title').textContent = 'Kaart toevoegen';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-code').value = '';
+  document.getElementById('f-cat').value = 'Supermarkt';
+  document.getElementById('code-preview').style.display = 'none';
+  document.getElementById('edit-extra').style.display = 'none';
+  setType('barcode');
+  buildEmojiGrid('🛒');
+  document.getElementById('modal-add').classList.add('open');
+}
+
+function openEditModal(id) {
+  const c = cards.find(c => c.id === id);
+  editingId = id;
+  selectedEmoji = c.emoji;
+  selectedType = c.type;
+  document.getElementById('modal-title').textContent = 'Kaart bewerken';
+  document.getElementById('f-name').value = c.name;
+  document.getElementById('f-code').value = c.code;
+  document.getElementById('f-cat').value = c.cat;
+  document.getElementById('edit-extra').style.display = 'block';
+  setType(c.type);
+  buildEmojiGrid(c.emoji);
+  previewCode();
+  document.getElementById('modal-add').classList.add('open');
+}
+
+function closeAddModal() { document.getElementById('modal-add').classList.remove('open'); }
+
+function saveCard() {
+  const name = document.getElementById('f-name').value.trim();
+  const code = document.getElementById('f-code').value.trim();
+  const cat = document.getElementById('f-cat').value;
+  if (!name || !code) { alert('Vul winkelnaam en code in.'); return; }
+  if (editingId) {
+    const c = cards.find(c => c.id === editingId);
+    Object.assign(c, { name, code, cat, emoji: selectedEmoji, type: selectedType });
+  } else {
+    cards.push({ id: uid(), name, code, cat, emoji: selectedEmoji, type: selectedType, fav: false });
+  }
+  save(); renderCards(); closeAddModal();
+}
+
+function deleteCard() {
+  if (!confirm('Kaart verwijderen?')) return;
+  cards = cards.filter(c => c.id !== editingId);
+  save(); renderCards(); closeAddModal();
+}
+
+// --- SCANNER (ZXing) ---
+let zxingReader = null;
+
+async function startScanner() {
+  const status = document.getElementById('scan-status');
+  const scanLine = document.getElementById('scan-line');
+  status.textContent = 'Camera starten...';
+
+  if (typeof ZXing === 'undefined') {
+    status.textContent = '⚠️ Scanbibliotheek niet geladen. Controleer je internetverbinding en herlaad de pagina.';
+    return;
+  }
+
+  try {
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.AZTEC,
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+
+    // getUserMedia werkt ook op file:// — geen deviceId nodig
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById('scanner-video');
+    video.srcObject = stream;
+    await video.play();
+
+    status.textContent = 'Richt de camera op een barcode of QR-code';
+    scanLine.style.display = 'block';
+
+    await zxingReader.decodeFromStream(stream, video, (result, err) => {
+      if (result) {
+        const raw = result.getText();
+        const fmt = result.getBarcodeFormat();
+        const isQr = fmt === ZXing.BarcodeFormat.QR_CODE || fmt === ZXing.BarcodeFormat.DATA_MATRIX || fmt === ZXing.BarcodeFormat.AZTEC;
+        stopScanner();
+        if (scanFromModal) {
+          document.getElementById('f-code').value = raw;
+          setType(isQr ? 'qr' : 'barcode');
+          previewCode();
+          showPage('home');
+          document.getElementById('modal-add').classList.add('open');
+        } else {
+          showPage('home');
+          setTimeout(() => {
+            openAddModal();
+            document.getElementById('f-code').value = raw;
+            setType(isQr ? 'qr' : 'barcode');
+            previewCode();
+          }, 100);
+        }
+      }
+    });
+  } catch(e) {
+    console.error(e);
+    const msg = e && e.message ? e.message : String(e);
+    if (/permission|denied/i.test(msg)) {
+      status.textContent = '⚠️ Camera-toegang geweigerd. Geef toestemming in je browserinstellingen.';
+    } else if (/device|found|enumerate/i.test(msg)) {
+      status.textContent = '⚠️ Geen camera gevonden op dit apparaat.';
+    } else {
+      status.textContent = '⚠️ Camera kon niet starten. Probeer opnieuw of voer de code handmatig in.';
+    }
+    scanLine.style.display = 'none';
+  }
+}
+
+function stopScanner() {
+  if (zxingReader) { try { zxingReader.reset(); } catch(e) {} zxingReader = null; }
+  const sl = document.getElementById('scan-line');
+  if (sl) sl.style.display = 'none';
+  const v = document.getElementById('scanner-video');
+  if (v && v.srcObject) {
+    v.srcObject.getTracks().forEach(t => t.stop());
+    v.srcObject = null;
+  }
+}
+
+function startScanPage() {
+  scanFromModal = false;
+  showPage('scan');
+  startScanner();
+}
+
+function openScanFromModal() {
+  scanFromModal = true;
+  closeAddModal();
+  showPage('scan');
+  startScanner();
+}
+
+// Close modals on overlay click
+document.getElementById('modal-add').addEventListener('click', e => { if (e.target === e.currentTarget) closeAddModal(); });
+document.getElementById('modal-detail').addEventListener('click', e => { if (e.target === e.currentTarget) closeDetailModal(); });
+
+// Init
+renderCards();
+</script>
+</body>
+</html>
