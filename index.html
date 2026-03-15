@@ -11,7 +11,7 @@
   <title>Winkelkaart</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -494,17 +494,17 @@ function editCurrentCard() { closeDetailModal(); openEditModal(detailId); }
 function renderCodeInto(code, type, container, small) {
   if (!code) return;
   if (type === 'qr') {
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
     try {
-      QRCode.toCanvas(canvas, code, { width: small ? 80 : 200, margin: 1, color: { dark: '#000000', light: '#ffffff' } }, function(err) {
-        if (err) {
-          canvas.remove();
-          container.innerHTML = '<p style="color:#999;font-size:12px">QR-code kon niet worden weergegeven</p>';
-        }
+      const size = small ? 80 : 200;
+      new QRCode(container, {
+        text: code,
+        width: size,
+        height: size,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
       });
     } catch(e) {
-      canvas.remove();
       container.innerHTML = '<p style="color:#999;font-size:12px">QR-code kon niet worden weergegeven</p>';
     }
   } else {
