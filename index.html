@@ -298,6 +298,7 @@
         <option value="Electronica">📱 Electronica</option>
         <option value="Boeken">📚 Boeken</option>
         <option value="Brandstof">⛽ Brandstof</option>
+        <option value="Bouwmarkt">🔨 Bouwmarkt</option>
         <option value="Overig">🏪 Overig</option>
       </select>
     </div>
@@ -344,7 +345,106 @@
 <script>
 const EMOJIS = ['🛒','🛍️','👗','👟','💊','📱','📚','⛽','🏪','🍕','☕','🎮','💄','🌿','🐾','🏋️','🔑','🎁'];
 const COLORS = ['bg-purple','bg-teal','bg-amber','bg-coral','bg-green','bg-blue','bg-pink'];
-const CATS = ['Supermarkt','Mode','Drogist','Sport','Electronica','Boeken','Brandstof','Overig'];
+const CATS = ['Supermarkt','Mode','Drogist','Sport','Electronica','Boeken','Brandstof','Bouwmarkt','Overig'];
+const CAT_ICONS = {'Supermarkt':'🛒','Mode':'👗','Drogist':'💊','Sport':'⚽','Electronica':'📱','Boeken':'📚','Brandstof':'⛽','Bouwmarkt':'🔨','Overig':'🏪'};
+
+// Logo's voor bekende Nederlandse winkels
+// Formaat: zoekterm (lowercase) -> { bg: achtergrondkleur, tekst: afkorting/naam, color: tekstkleur }
+const LOGOS = {
+  // Supermarkten
+  'albert heijn': { bg: '#00a0e2', text: 'AH', color: '#fff' },
+  'ah': { bg: '#00a0e2', text: 'AH', color: '#fff' },
+  'jumbo': { bg: '#ffd700', text: 'JUMBO', color: '#000' },
+  'lidl': { bg: '#0050aa', text: 'Lidl', color: '#ffcc00' },
+  'aldi': { bg: '#1a4098', text: 'ALDI', color: '#fff' },
+  'plus': { bg: '#e2001a', text: 'PLUS', color: '#fff' },
+  'dirk': { bg: '#e2001a', text: 'DIRK', color: '#fff' },
+  'hoogvliet': { bg: '#e2001a', text: 'HV', color: '#fff' },
+  'dekamarkt': { bg: '#e2001a', text: 'DEKA', color: '#fff' },
+  'spar': { bg: '#009a44', text: 'SPAR', color: '#fff' },
+  'coop': { bg: '#e2001a', text: 'Coop', color: '#fff' },
+  'vomar': { bg: '#e2001a', text: 'VOMAR', color: '#fff' },
+  'picnic': { bg: '#43b02a', text: 'picnic', color: '#fff' },
+  // Drogist
+  'etos': { bg: '#e2001a', text: 'etos', color: '#fff' },
+  'kruidvat': { bg: '#009a44', text: 'KV', color: '#fff' },
+  'da drogist': { bg: '#0050aa', text: 'DA', color: '#fff' },
+  'trekpleister': { bg: '#e2001a', text: 'TP', color: '#fff' },
+  // Mode
+  'h&m': { bg: '#e2001a', text: 'H&M', color: '#fff' },
+  'zara': { bg: '#000', text: 'ZARA', color: '#fff' },
+  'primark': { bg: '#00529b', text: 'PR', color: '#fff' },
+  'c&a': { bg: '#003082', text: 'C&A', color: '#fff' },
+  'wehkamp': { bg: '#e2001a', text: 'WH', color: '#fff' },
+  'bijenkorf': { bg: '#1a1a1a', text: 'de BK', color: '#fff' },
+  'only': { bg: '#000', text: 'ONLY', color: '#fff' },
+  'jack & jones': { bg: '#1a1a2e', text: 'J&J', color: '#fff' },
+  'scotch': { bg: '#1a1a2e', text: 'S&S', color: '#fff' },
+  // Sport
+  'decathlon': { bg: '#0082c3', text: 'DECA', color: '#fff' },
+  'intersport': { bg: '#e2001a', text: 'IS', color: '#fff' },
+  'running': { bg: '#ff6600', text: 'RUN', color: '#fff' },
+  // Electronica
+  'mediamarkt': { bg: '#e2001a', text: 'MM', color: '#fff' },
+  'coolblue': { bg: '#003082', text: 'CB', color: '#fff' },
+  'fnac': { bg: '#e2001a', text: 'fnac', color: '#fff' },
+  'bcc': { bg: '#e2001a', text: 'BCC', color: '#fff' },
+  // Boeken
+  'bol.com': { bg: '#0050aa', text: 'bol', color: '#fff' },
+  'bol': { bg: '#0050aa', text: 'bol', color: '#fff' },
+  'bruna': { bg: '#e2001a', text: 'bruna', color: '#fff' },
+  'selexyz': { bg: '#1a1a2e', text: 'SX', color: '#fff' },
+  // Brandstof
+  'shell': { bg: '#dd1d21', text: 'Shell', color: '#ffcc00' },
+  'bp': { bg: '#009a44', text: 'BP', color: '#ffcc00' },
+  'tinq': { bg: '#ff6600', text: 'tinq', color: '#fff' },
+  'tango': { bg: '#e2001a', text: 'tango', color: '#fff' },
+  'tamoil': { bg: '#e2001a', text: 'tamoil', color: '#fff' },
+  'esso': { bg: '#003082', text: 'esso', color: '#e2001a' },
+  'total': { bg: '#e2001a', text: 'TTE', color: '#fff' },
+  'q8': { bg: '#e2001a', text: 'Q8', color: '#fff' },
+  // Bouwmarkt
+  'gamma': { bg: '#009a44', text: 'GAMMA', color: '#fff' },
+  'karwei': { bg: '#0050aa', text: 'KW', color: '#fff' },
+  'praxis': { bg: '#e2001a', text: 'PRAXIS', color: '#fff' },
+  'hornbach': { bg: '#e2001a', text: 'HB', color: '#fff' },
+  'ikea': { bg: '#0050aa', text: 'IKEA', color: '#ffcc00' },
+  'bauhaus': { bg: '#e2001a', text: 'BH', color: '#fff' },
+  // Overig
+  'hema': { bg: '#e2001a', text: 'HEMA', color: '#fff' },
+  'action': { bg: '#e2001a', text: 'Action', color: '#fff' },
+  'blokker': { bg: '#e2001a', text: 'BLK', color: '#fff' },
+  'xenos': { bg: '#1a1a2e', text: 'XNS', color: '#fff' },
+  'flying tiger': { bg: '#e2001a', text: 'FT', color: '#fff' },
+  'kijkshop': { bg: '#e2001a', text: 'KS', color: '#fff' },
+  'mcdonalds': { bg: '#ffcc00', text: 'M', color: '#da291c' },
+  "mcdonald's": { bg: '#ffcc00', text: 'M', color: '#da291c' },
+  'starbucks': { bg: '#00704a', text: 'SB', color: '#fff' },
+  'pathé': { bg: '#e2001a', text: 'Pathé', color: '#fff' },
+  'pathe': { bg: '#e2001a', text: 'Pathé', color: '#fff' },
+  'vue': { bg: '#1a1a2e', text: 'VUE', color: '#fff' },
+};
+
+function getLogo(name) {
+  const lower = name.toLowerCase().trim();
+  // Exacte match eerst
+  if (LOGOS[lower]) return LOGOS[lower];
+  // Gedeeltelijke match
+  for (const key of Object.keys(LOGOS)) {
+    if (lower.includes(key) || key.includes(lower)) return LOGOS[key];
+  }
+  return null;
+}
+
+function makeLogoHtml(name, emoji, colorClass, size = 48) {
+  const logo = getLogo(name);
+  const fontSize = size <= 48 ? Math.min(13, size * 0.28) : Math.min(18, size * 0.24);
+  const emojiSize = size <= 48 ? 22 : 28;
+  if (logo) {
+    return `<div class="store-icon" style="width:${size}px;height:${size}px;border-radius:${size <= 48 ? 12 : 14}px;background:${logo.bg};display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;font-weight:700;color:${logo.color};letter-spacing:-0.5px;flex-shrink:0">${logo.text}</div>`;
+  }
+  return `<div class="store-icon ${colorClass}" style="width:${size}px;height:${size}px;border-radius:${size <= 48 ? 12 : 14}px;font-size:${emojiSize}px;flex-shrink:0">${emoji}</div>`;
+}
 
 let cards = JSON.parse(localStorage.getItem('winkelkaart-v2') || '[]');
 let currentFilter = 'all';
@@ -390,7 +490,7 @@ function renderCards() {
       if (!grouped[cat]) continue;
       const title = document.createElement('div');
       title.className = 'cat-title';
-      title.textContent = ['🛒','👗','💊','⚽','📱','📚','⛽','🏪'][CATS.indexOf(cat)] + ' ' + cat;
+      title.textContent = (CAT_ICONS[cat] || '🏪') + ' ' + cat;
       list.appendChild(title);
       grouped[cat].forEach(c => list.appendChild(makeCard(c)));
     }
@@ -409,7 +509,7 @@ function makeCard(c) {
   div.className = 'store-card';
   div.innerHTML = `
     <div class="store-card-inner">
-      <div class="store-icon ${getColor(c.name)}">${c.emoji}</div>
+      ${makeLogoHtml(c.name, c.emoji, getColor(c.name), 48)}
       <div class="store-info">
         <div class="store-name">${c.name}</div>
         <div class="store-cat">${c.cat} · ${c.type === 'qr' ? 'QR' : 'Barcode'}</div>
@@ -477,8 +577,10 @@ function openDetail(id) {
   const c = cards.find(c => c.id === id);
   document.getElementById('d-name').textContent = c.name;
   document.getElementById('d-cat').textContent = c.cat + ' · ' + (c.type === 'qr' ? 'QR-code' : 'Barcode');
-  document.getElementById('d-icon').textContent = c.emoji;
-  document.getElementById('d-icon').className = 'detail-icon ' + getColor(c.name);
+  const iconEl = document.getElementById('d-icon');
+  iconEl.outerHTML = makeLogoHtml(c.name, c.emoji, getColor(c.name), 56);
+  // re-select since outerHTML replaces the element
+  document.querySelector('.detail-header').children[0].id = 'd-icon';
   document.getElementById('d-code-text').textContent = c.code;
   document.getElementById('d-fav-btn').textContent = c.fav ? '★' : '☆';
   document.getElementById('d-fav-btn').style.color = c.fav ? '#fbbf24' : '';
