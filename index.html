@@ -7,12 +7,18 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Winkelkaart">
-  <title>Winkelkaart</title>
+  <meta name="apple-mobile-web-app-title" content="StoreCard">
+  <title>StoreCard</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+  <script>
+  // Service Worker registreren voor offline caching van bibliotheken
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  </script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -142,8 +148,20 @@
 <!-- PAGE: HOME -->
 <div class="page active" id="page-home">
   <div class="page-header">
-    <h1>🛍️ Winkelkaart</h1>
-    <p id="subtitle-count">0 kaarten opgeslagen</p>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+          <line x1="6" y1="15" x2="10" y2="15"/>
+          <line x1="14" y1="15" x2="16" y2="15"/>
+        </svg>
+      </div>
+      <div>
+        <h1 style="font-size:20px;line-height:1">StoreCard</h1>
+        <p id="subtitle-count" style="margin-top:1px">0 kaarten opgeslagen</p>
+      </div>
+    </div>
     <div class="search-bar">
       <input type="search" id="search-input" placeholder="Zoek winkel..." oninput="filterCards()">
     </div>
